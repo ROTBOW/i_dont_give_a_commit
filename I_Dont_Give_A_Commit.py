@@ -16,6 +16,11 @@ RES = fr'{DIR}\\res'
 class IDGAC:
     
     def __init__(self) -> None:
+        """
+        This is a constructor function that initializes three data structures - a nested dictionary,
+        another nested dictionary, and a list.
+        """
+        self.seekers_by_coach = ddict(dict)
         self.lacking_by_coach = ddict(dict)
         self.seekers_no_link = list()
         
@@ -42,7 +47,7 @@ class IDGAC:
                 
                 coach = curr_row['coach'] if curr_row['coach'] != ' ' else 'Placements'
                 
-                self.lacking_by_coach[coach][curr_row['seeker']] = curr_row['url']
+                self.seekers_by_coach[coach][curr_row['seeker']] = curr_row['url']
                 bar()
     
     
@@ -50,27 +55,27 @@ class IDGAC:
         """
         This function prunes linkless seekers from a dictionary and writes their names to a text file.
         """
-        if not self.lacking_by_coach:
+        if not self.seekers_by_coach:
             raise Exception('NO DATA - Are you sure the file was parsed properly?')
         
         linkless = set()
         
         with alive_bar(0, title="Pruning linkless seekers...") as bar:
-            for coach in self.lacking_by_coach:
+            for coach in self.seekers_by_coach:
                 ll = set()
-                for seeker, url in self.lacking_by_coach[coach].items():
+                for seeker, url in self.seekers_by_coach[coach].items():
                     if url == '':
                         ll.add(seeker)
                     bar()
         
                 for seeker in ll:
-                    self.lacking_by_coach[coach].pop(seeker)
+                    self.seekers_by_coach[coach].pop(seeker)
                     bar()
                     
                 linkless.update(ll)
         
         with open(f'{RES}\linkless_seekers_{date.today()}.txt', 'w') as f:
-            f.write('\n'.join(linkless))
+            f.write('\n'.join(sorted(linkless)))
         
     def __last_seven_days(self, commit_date: str, commit_month: str, commit_year: str) -> bool:
         """
@@ -112,6 +117,7 @@ class IDGAC:
         :return: an integer value representing the number of commits made in the last seven days on a
         given GitHub repository.
         """
+        sleep(.5)
         res = requests.get(url)
         soup = bs(res.text, 'html.parser')
         days = list(day.text for day in soup.find_all('rect', {'class': 'ContributionCalendar-day'}) if day.text)
@@ -128,13 +134,41 @@ class IDGAC:
         
         return commits
     
+    def __linear_get_seeker_commits(self) -> None:
+        """
+        This function iterates through each seeker of each coach and gets their commits, storing the
+        ones with less than 5 commits in a dictionary.
+        """
+        
+        for coach in self.seekers_by_coach:
+            with alive_bar(len(self.seekers_by_coach[coach]), title=f"Getting {coach}'s seekers' commits") as bar:
+                for seeker in self.seekers_by_coach[coach]:
+                    commits = self.__get_commits(self.seekers_by_coach[coach][seeker])
+                    if commits <= 4:
+                        self.lacking_by_coach[coach][seeker] = commits
+                    bar()
+        
+    def __res_to_file(self) -> None:
+        """
+        This function writes a report of lacking commits by coach and seeker to a file.
+        """
+        with open(f'{RES}\lacking_commits_{date.today()}', 'w') as f:
+            for coach in self.lacking_by_coach:
+                f.write(coach + '\n')
+                for seeker, commits in self.lacking_by_coach[coach].items():
+                    f.write(f'    {seeker}: {commits}\n')
+                f.write('\n')
     
     def main(self):
+        """
+        The main function grabs data from a file, prunes linkless data, gets commits using linear
+        seeking, and writes the results to a file.
+        """
         self.__grab_data_from_file()
         self.__prune_linkless()
-        
-        # below is code for testing the get commits func
-        # print(self.__get_commits('https://github.com/ROTBOW'))
+        # Func below can be swapped with a theading ver for more speed if needed
+        self.__linear_get_seeker_commits()
+        self.__res_to_file()
     
     
 if __name__ == '__main__':
