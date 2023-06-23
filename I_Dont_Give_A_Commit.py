@@ -2,7 +2,7 @@ import os
 import re
 from collections import defaultdict as ddict
 from datetime import date, datetime
-from time import sleep
+from time import sleep, time
 
 import requests
 from alive_progress import alive_bar
@@ -140,7 +140,12 @@ class IDGAC:
         ones with less than 5 commits in a dictionary.
         """
         
-        for coach in self.seekers_by_coach:
+        # you can change below to loop over all the coaches you want to get the seeker commits for
+        # if you use this line:
+            # for coach in self.seekers_by_coach:
+        # it will go over all coachs    
+        
+        for coach in ['Josiah Leon', 'Peter Joh']:
             with alive_bar(len(self.seekers_by_coach[coach]), title=f"Getting {coach}'s seekers' commits") as bar:
                 for seeker in self.seekers_by_coach[coach]:
                     commits = self.__get_commits(self.seekers_by_coach[coach][seeker])
@@ -152,7 +157,7 @@ class IDGAC:
         """
         This function writes a report of lacking commits by coach and seeker to a file.
         """
-        with open(f'{RES}\lacking_commits_{date.today()}', 'w') as f:
+        with open(f'{RES}\lacking_commits_{date.today()}.txt', 'w') as f:
             for coach in self.lacking_by_coach:
                 f.write(coach + '\n')
                 for seeker, commits in self.lacking_by_coach[coach].items():
@@ -174,6 +179,9 @@ class IDGAC:
 if __name__ == '__main__':
     if not os.path.isdir(RES):
         os.mkdir(RES)
-        
+    start = time()
     idgac = IDGAC()
     idgac.main()
+    end = time()
+    
+    print(f'Total Time: {round(end-start, 2)}s')
