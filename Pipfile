@@ -7,6 +7,7 @@ name = "pypi"
 requests = "*"
 openpyxl = "*"
 alive-progress = "*"
+bs4 = "*"
 
 [dev-packages]
 
