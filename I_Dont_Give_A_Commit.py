@@ -1,7 +1,7 @@
 import os
 import re
 from collections import defaultdict as ddict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from time import sleep, time
 
 import requests
@@ -179,9 +179,10 @@ class IDGAC:
 if __name__ == '__main__':
     if not os.path.isdir(RES):
         os.mkdir(RES)
+        
     start = time()
     idgac = IDGAC()
     idgac.main()
     end = time()
     
-    print(f'Total Time: {round(end-start, 2)}s')
+    print(f'Total Time: {timedelta(seconds=end-start)}')
