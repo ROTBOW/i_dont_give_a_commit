@@ -27,7 +27,8 @@ class IDGAC:
         
     def __grab_data_from_file(self) -> None:
         """
-        This function reads data from an Excel file in the target folder and populates a dictionary with the data.
+        The function `__grab_data_from_file` reads data from a file, performs some data manipulation,
+        and stores the results in a dictionary.
         """
         target_file = os.listdir(TARGET)[0]
         data = load_workbook(fr'{TARGET}\\{target_file}')
@@ -42,8 +43,12 @@ class IDGAC:
             for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
                 curr_row = dict()
                 for idx, cell in enumerate(row):
-                    curr_row[cells[idx]] = cell.value
-                        
+                    if idx == 2:
+                        match = re.match(r"^(http(s)?://)?(www.)?github\.com/[\d\w-]*", cell.value)
+                        if match:
+                            cell.value = match.group(0)
+                            
+                    curr_row[cells[idx]] = cell.value     
                 
                 coach = curr_row['coach'] if curr_row['coach'] != ' ' else 'Placements'
                 
@@ -109,19 +114,22 @@ class IDGAC:
         
     def __get_commits(self, url: str) -> int:
         """
-        This function retrieves the number of commits made by a user in the last seven days from a given
-        GitHub URL.
+        The function `__get_commits` retrieves the number of commits made in the last seven days from a
+        given URL.
         
-        :param url: The URL of a user's GitHub page
+        :param url: The `url` parameter is a string that represents the URL of a webpage containing a
+        contribution calendar
         :type url: str
-        :return: an integer value representing the number of commits made in the last seven days on a
-        given GitHub repository.
+        :return: the number of commits made in the last seven days.
         """
         sleep(.5)
         res = requests.get(url)
         soup = bs(res.text, 'html.parser')
         days = list(day.text for day in soup.find_all('rect', {'class': 'ContributionCalendar-day'}) if day.text)
         commits = 0
+        
+        if not days:
+            return -404
         
         for day in days:
             match = re.match(r"^(?P<count>(No|\d+)) contribution[s]? on \w+, (?P<month>\w+) (?P<date>\d{1,2}), (?P<year>\d{4})", day)
@@ -145,26 +153,28 @@ class IDGAC:
             # for coach in self.seekers_by_coach:
         # it will go over all coachs    
         
-        for coach in ['Josiah Leon', 'Peter Joh']:
+        for coach in ['Placements']:
             with alive_bar(len(self.seekers_by_coach[coach]), title=f"Getting {coach}'s seekers' commits") as bar:
                 for seeker in self.seekers_by_coach[coach]:
                     commits = self.__get_commits(self.seekers_by_coach[coach][seeker])
+                    
                     if commits <= 4:
                         self.lacking_by_coach[coach][seeker] = commits
                     bar()
         
     def __res_to_file(self) -> None:
         """
-        This function writes a report of lacking commits by coach and seeker to a file.
+        The function writes a report to a file, including information about coaches and their
+        corresponding seekers' commits.
         """
         with open(f'{RES}\lacking_commits_{date.today()}.txt', 'w') as f:
             for coach in self.lacking_by_coach:
                 f.write(coach + '\n')
                 for seeker, commits in self.lacking_by_coach[coach].items():
-                    f.write(f'    {seeker}: {commits}\n')
+                    f.write(f'    {seeker}: {"No days found - bad url?" if commits == -404 else commits}\n')
                 f.write('\n')
     
-    def main(self):
+    def main(self) -> None:
         """
         The main function grabs data from a file, prunes linkless data, gets commits using linear
         seeking, and writes the results to a file.
